@@ -1,0 +1,14 @@
+{
+  "method": "docker",
+  "host_os": "macOS",
+  "container_os": "Ubuntu 26.04.1 LTS",
+  "ros_distro": "lyrical",
+  "rmw_implementation": "rmw_fastrtps_cpp",
+  "gazebo_version": "10.5.0",
+  "domains": {
+    "base": 16,
+    "defect": 17
+  },
+  "docker_image": "tiryoh/ros2-desktop-vnc:lyrical-20260906T0836",
+  "docker_digest": "sha256:23bbfbd0bac264da8ef39fb599b9d58b209b06603b49e979eba8021286c56b6e"
+}

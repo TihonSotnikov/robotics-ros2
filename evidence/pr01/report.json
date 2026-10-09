@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "practice_id": "PR01",
+  "commit": "823bc6beee91e4f9e92c985e057fa5e7161aaab1",
+  "course_kit": {
+    "version": "v1-w05",
+    "archive_sha256": "bca214e3de6f90f9513049dfa0f36fee65ad834da502dc3f3f8fb443517b5197"
+  },
+  "commands": [
+    "ros2 node list --no-daemon --spin-time 2",
+    "ros2 topic list -t",
+    "ros2 node info /turtlesim",
+    "ros2 topic type /turtle1/pose",
+    "ros2 topic echo /turtle1/pose --once",
+    "ros2 topic hz /turtle1/pose",
+    "timeout 5s ros2 topic echo /turtle1/pose \"$POSE_TYPE\" --once"
+  ],
+  "tests": [
+    {
+      "name": "check_practice",
+      "status": "passed"
+    }
+  ],
+  "defect": {
+    "reproducer": "Перевод turtle_teleop_key и наблюдателя в ROS_DOMAIN_ID=17 при turtlesim_node в домене 16: команда timeout 5s ros2 topic echo /turtle1/pose \"$POSE_TYPE\" --once завершается с кодом exit=124",
+    "root_cause": "Изоляция сетевого трафика на уровне протокола DDS между несовпадающими доменами ROS_DOMAIN_ID (16 и 17)",
+    "proof_after": "Возврат ROS_DOMAIN_ID=16 и перезапуск turtle_teleop_key восстанавливает прием сообщений: exit=0, x=0.0, y=0.0"
+  },
+  "claims": {
+    "public_tests_passed": true,
+    "defect_reproduced": true,
+    "defect_fixed": true
+  },
+  "time": {
+    "contact_academic_hours": 2,
+    "self_study_hours": 2
+  },
+  "ai_used": true
+}
