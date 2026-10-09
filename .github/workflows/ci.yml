@@ -1,0 +1,31 @@
+name: Practice Verification
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check-pr01:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate JSON syntax
+        run: |
+          python3 -m json.tool evidence/pr01/environment.json > /dev/null
+          python3 -m json.tool evidence/pr01/report.json > /dev/null
+
+      - name: Download and unpack course-kit
+        run: |
+          curl -sSL -O https://ros.lms.ci.nsu.ru/downloads/robotics-course-kit-v1-w05-bca214e3de6f.tar.gz
+          curl -sSL -O https://ros.lms.ci.nsu.ru/downloads/robotics-course-kit-v1-w05-bca214e3de6f.tar.gz.sha256.txt
+          sha256sum -c robotics-course-kit-v1-w05-bca214e3de6f.tar.gz.sha256.txt
+          mkdir -p .course-kit
+          tar -xzf robotics-course-kit-v1-w05-bca214e3de6f.tar.gz -C .course-kit
+
+      - name: Run practice checker
+        run: |
+          python3 .course-kit/v1/tools/check_practice.py PR01 --submission .
