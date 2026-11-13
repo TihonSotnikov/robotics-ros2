@@ -53,3 +53,54 @@
      printf 'exit=%s\n' "$?"
      ```
      Ожидается код возврата `0` и вывод сообщения позы.
+
+## Практика 02 (ПР02): пакет turtle_bringup и launch
+
+Пакет `src/turtle_bringup` содержит launch-файл `launch/sim.launch.py`, который запускает узел `turtlesim`. Корень workspace — корень репозитория.
+
+### Воспроизведение эксперимента
+
+1. **Сборка и подключение пакета:**
+   ```bash
+   source /opt/ros/lyrical/setup.bash
+   colcon build --symlink-install --packages-select turtle_bringup
+   source install/setup.bash
+   ros2 pkg prefix turtle_bringup
+   ```
+
+2. **Запуск (терминал A):**
+   ```bash
+   export ROS_DOMAIN_ID=16
+   export DISPLAY=:1
+   ros2 launch turtle_bringup sim.launch.py
+   ```
+   Проверка графа (терминал C): `ros2 node list --no-daemon --spin-time 2` выводит `/turtlesim`. Остановка: Ctrl+C в терминале A.
+
+3. **Отправка команды:**
+   ```bash
+   ros2 topic echo /turtle1/pose --once
+   ros2 topic pub --once /turtle1/cmd_vel geometry_msgs/msg/Twist '{linear: {x: 1.0}, angular: {z: 0.5}}'
+   ros2 topic echo /turtle1/pose --once
+   ```
+   Черепаха проезжает вперёд с поворотом влево и останавливается.
+
+4. **Воспроизведение сбоя (неверное имя топика):**
+   - Терминал B:
+     ```bash
+     ros2 topic pub --rate 1 --wait-matching-subscriptions 0 /cmd_vel geometry_msgs/msg/Twist '{linear: {x: 1.0}, angular: {z: 0.5}}'
+     ```
+   - Терминал C:
+     ```bash
+     ros2 topic info /cmd_vel --verbose
+     ros2 topic info /turtle1/cmd_vel --verbose
+     ros2 topic echo /turtle1/pose --once
+     ```
+     У `/cmd_vel`: 1 издатель, 0 подписчиков; у `/turtle1/cmd_vel`: 0 издателей, 1 подписчик (`turtlesim`). Черепаха стоит, скорости 0.0.
+
+5. **Исправление:** остановить издателя (Ctrl+C) и запустить ту же команду, изменив только имя топика:
+   ```bash
+   ros2 topic pub --rate 1 --wait-matching-subscriptions 0 /turtle1/cmd_vel geometry_msgs/msg/Twist '{linear: {x: 1.0}, angular: {z: 0.5}}'
+   ros2 topic info /turtle1/cmd_vel --verbose
+   ros2 topic echo /turtle1/pose --once
+   ```
+   Publisher count 1, Subscription count 1, в позе `linear_velocity: 1.0`, `angular_velocity: 0.5`, черепаха едет.

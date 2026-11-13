@@ -1,31 +1,38 @@
 name: Practice Verification
 
-on:
-  push:
-  pull_request:
+on: [push, pull_request]
+
+env:
+  COURSE_KIT_URL: https://ros.lms.ci.nsu.ru/downloads/robotics-course-kit-v1-w07-9b7fdd5424d3.tar.gz
+  COURSE_KIT_SHA256: 9b7fdd5424d3d97e47d51dbe23064934585e62135dc2902844dd679529bda929
 
 jobs:
-  check-pr01:
+  check-pr02:
     runs-on: ubuntu-latest
+    container:
+      image: osrf/ros:lyrical-desktop-full@sha256:e6b1cb530b65588279681db53784e264ce5cf83f2cc33e689d27d6024d7f3ebe
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Validate JSON syntax
+      - name: Build PR02 launch package
+        shell: bash
         run: |
-          python3 -m json.tool evidence/pr01/environment.json > /dev/null
-          python3 -m json.tool evidence/pr01/report.json > /dev/null
-
-      - name: Download and unpack course-kit
+          source /opt/ros/lyrical/setup.bash
+          colcon build --symlink-install --packages-select turtle_bringup
+          source install/setup.bash
+          test -f "$(ros2 pkg prefix turtle_bringup)/share/turtle_bringup/launch/sim.launch.py"
+          python3 -m py_compile src/turtle_bringup/launch/sim.launch.py
+      - name: Download course kit
+        shell: bash
         run: |
-          curl -sSL -O https://ros.lms.ci.nsu.ru/downloads/robotics-course-kit-v1-w05-bca214e3de6f.tar.gz
-          curl -sSL -O https://ros.lms.ci.nsu.ru/downloads/robotics-course-kit-v1-w05-bca214e3de6f.tar.gz.sha256.txt
-          sha256sum -c robotics-course-kit-v1-w05-bca214e3de6f.tar.gz.sha256.txt
+          curl -fsSLo /tmp/course-kit.tar.gz "$COURSE_KIT_URL"
+          printf '%s  %s\n' "$COURSE_KIT_SHA256" /tmp/course-kit.tar.gz | sha256sum -c -
           mkdir -p .course-kit
-          tar -xzf robotics-course-kit-v1-w05-bca214e3de6f.tar.gz -C .course-kit
-
-      - name: Run practice checker
+          tar -xzf /tmp/course-kit.tar.gz -C .course-kit
+      - name: Check PR02 evidence
+        shell: bash
         run: |
-          python3 .course-kit/v1/tools/check_practice.py PR01 --submission .
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          python3 -m json.tool evidence/pr02/report.json > /dev/null
+          python3 .course-kit/v1/tools/check_practice.py PR02 --submission .
