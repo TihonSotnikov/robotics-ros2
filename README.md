@@ -167,6 +167,7 @@ colcon build --symlink-install
 source /opt/ros/lyrical/setup.bash
 source install/setup.bash
 export ROS_DOMAIN_ID=16 DISPLAY=:1
+export XAUTHORITY=/home/ubuntu/.Xauthority
 ```
 
 ### До исправления
@@ -178,7 +179,7 @@ ros2 launch course_bringup patrol.launch.py namespace:=robot_a subscriber_reliab
 ```
 
 В терминале B сохраните граф, QoS издателя и подписчика и результат ожидания
-одной позы. Ожидается `exit=124`, то есть истекло время ожидания.
+одной позы. Ожидается предупреждение о несовместимости без координат позы.
 
 ```bash
 mkdir -p evidence/pr05
@@ -187,36 +188,43 @@ mkdir -p evidence/pr05
   ros2 topic list -t
   ros2 topic info /turtle1/cmd_vel --verbose
   ros2 topic info /robot_a/sensor_pose --verbose
-  rc=0
-  timeout 3s ros2 topic echo /robot_a/sensor_pose --qos-reliability reliable --once || rc=$?
-  printf 'reliable live exit=%s\n' "$rc"
+  timeout --kill-after=2s 8s ros2 topic echo /robot_a/sensor_pose \
+    --qos-reliability reliable --once --timeout 3
+  echo "exit=$?"
 } 2>&1 | tee evidence/pr05/qos-before.txt
 ```
 
 ### Исправление и запись
 
 Остановите запуск в A через Ctrl+C и запустите его с `best_effort` и записью.
-`bag_dir` должен указывать на новый путь. Команда записывает только
+`bag_dir` должен указывать на новый путь. Если `evidence/pr05/bag` уже
+существует, выберите другой путь и используйте его в следующих командах
+записи и повтора. Команда записывает только
 `/robot_a/sensor_pose` в формате MCAP.
 
 ```bash
 ros2 launch course_bringup patrol.launch.py namespace:=robot_a subscriber_reliability:=best_effort record:=true bag_dir:=evidence/pr05/bag
 ```
 
-В B дождитесь доступности топика и сохраните живую позу. Ожидается `exit=0`.
+В B дождитесь строки `First pose received` от подписчика в A и сохраните
+живую позу. Ожидаются поля `x`, `y` и `theta`.
 
 ```bash
 {
   echo '=== Live ==='
   ros2 topic info /robot_a/sensor_pose --verbose
-  rc=0
-  timeout 3s ros2 topic echo /robot_a/sensor_pose --qos-reliability best_effort --once || rc=$?
-  printf 'best_effort live exit=%s\n' "$rc"
+  timeout --kill-after=2s 8s ros2 topic echo /robot_a/sensor_pose \
+    --qos-reliability best_effort --once --timeout 3
 } 2>&1 | tee evidence/pr05/qos-after.txt
 ```
 
 Остановите запуск в A через Ctrl+C и дождитесь выхода recorder.
 Это завершает запись и сохраняет `metadata.yaml`.
+
+```bash
+ros2 bag info evidence/pr05/bag | tee -a evidence/pr05/qos-after.txt
+cp evidence/pr05/bag/metadata.yaml evidence/pr05/bag-metadata.yaml
+```
 
 ### Повтор той же записи
 
@@ -227,23 +235,23 @@ ros2 launch course_bringup patrol.launch.py namespace:=robot_a subscriber_reliab
 ros2 bag play evidence/pr05/bag --loop --qos-profile-overrides-path config/qos-overrides.yaml
 ```
 
-В B сравните подписки с двумя политиками на одном повторе и сохраните
-информацию о записи. Ожидаются `124`, затем `0`, один издатель
-`rosbag2_player` и один записанный топик с ненулевым числом сообщений.
+В B сравните подписки с двумя политиками на одном повторе. При `reliable`
+ожидается предупреждение без координат, при `best_effort` — поля позы.
+Встроенный `--timeout 3` завершает ожидание с кодом `0` даже без сообщения.
 
 ```bash
 {
   echo '=== Replay ==='
   ros2 topic info /robot_a/sensor_pose --verbose
-  rc=0
-  timeout 3s ros2 topic echo /robot_a/sensor_pose --qos-reliability reliable --once || rc=$?
-  printf 'reliable replay exit=%s\n' "$rc"
-  rc=0
-  timeout 3s ros2 topic echo /robot_a/sensor_pose --qos-reliability best_effort --once || rc=$?
-  printf 'best_effort replay exit=%s\n' "$rc"
-  ros2 bag info evidence/pr05/bag
+  echo '--- reliable ---'
+  timeout --kill-after=2s 8s ros2 topic echo /robot_a/sensor_pose \
+    --qos-reliability reliable --once --timeout 3
+  echo "exit=$?"
+  echo '--- best_effort ---'
+  timeout --kill-after=2s 8s ros2 topic echo /robot_a/sensor_pose \
+    --qos-reliability best_effort --once --timeout 3
+  echo "exit=$?"
 } 2>&1 | tee -a evidence/pr05/qos-after.txt
-cp evidence/pr05/bag/metadata.yaml evidence/pr05/bag-metadata.yaml
 ```
 
 Остановите повтор через Ctrl+C. Отдельно выполните тесты рабочего пространства.
