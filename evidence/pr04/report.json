@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "practice_id": "PR04",
+  "commit": "d265b9237b12c12b56ee8ca40a294b9b87c3d4f3",
+  "course_kit": {
+    "version": "v1-w11",
+    "archive_sha256": "0b67bfd41448549d21122124b7f49211ba2cd068cc56751871f319eadeb9d0ab"
+  },
+  "commands": [
+    "colcon build --symlink-install --packages-select patrol",
+    "ros2 launch turtle_bringup sim.launch.py",
+    "ros2 run patrol patrol --ros-args -r cmd_vel:=/turtle1/cmd_vel",
+    "ros2 param set /patrol linear_speed 0.7",
+    "ros2 topic echo /turtle1/cmd_vel --once",
+    "timeout -s INT 6s ros2 topic hz /turtle1/cmd_vel",
+    "ros2 param set /patrol publish_hz 5.0",
+    "timeout 8s ros2 param set /patrol publish_hz 0.0",
+    "ros2 param get /patrol publish_hz",
+    "(cd src/patrol && python3 -m pytest test)",
+    "ros2 service call /clear std_srvs/srv/Empty '{}'",
+    "ros2 action list -t"
+  ],
+  "tests": [
+    {
+      "name": "pytest: 13 passed, 1 skipped",
+      "status": "passed"
+    },
+    {
+      "name": "Обновление linear_speed видно в Twist",
+      "status": "passed"
+    },
+    {
+      "name": "Замеры частоты при обновлении и отклонении параметра",
+      "status": "passed"
+    },
+    {
+      "name": "Вызов /clear и обнаружение /turtle1/rotate_absolute",
+      "status": "passed"
+    }
+  ],
+  "defect": {
+    "reproducer": "На ветке codex/pr04-zero-frequency (10b0c7e) команда timeout 8s ros2 param set /patrol publish_hz 0.0 привела к ZeroDivisionError в ноде. Процесс завершился с кодом 1, timeout вернул 124.",
+    "root_cause": "При отключённой проверке частоты 0.0 прошло в apply_parameters, где вычисляется период 1.0 / frequency.",
+    "proof_after": "При включённой проверке частота 5.0 принята, после чего измерено 5.015 Гц. Тот же запрос с 0.0 отклонён, param get вернул 5.0, после отказа измерено 4.962 Гц."
+  },
+  "claims": {
+    "public_tests_passed": true,
+    "defect_reproduced": true,
+    "defect_fixed": true
+  },
+  "time": {
+    "contact_academic_hours": 2,
+    "self_study_hours": 2
+  },
+  "ai_used": true
+}
