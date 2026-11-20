@@ -104,3 +104,36 @@
    ros2 topic echo /turtle1/pose --once
    ```
    Publisher count 1, Subscription count 1, в позе `linear_velocity: 1.0`, `angular_velocity: 0.5`, черепаха едет.
+
+## Практика 04 (ПР04). Параметры движения
+
+В контейнере Lyrical из корня репозитория соберите оба пакета.
+
+```bash
+source /opt/ros/lyrical/setup.bash
+colcon build --symlink-install --packages-select turtle_bringup patrol
+```
+
+В каждом новом терминале подключите базовую ROS, затем
+`source install/setup.bash` и `export ROS_DOMAIN_ID=16`.
+В первом терминале запустите `DISPLAY=:1 ros2 launch turtle_bringup sim.launch.py`,
+во втором — `ros2 run patrol patrol --ros-args -r cmd_vel:=/turtle1/cmd_vel`.
+
+В третьем терминале измерьте частоту топика до изменения, после установки
+`5.0` Гц и после отклонения `0.0` Гц.
+
+```bash
+timeout -s INT 6s ros2 topic hz /turtle1/cmd_vel
+ros2 param set /patrol publish_hz 5.0
+timeout -s INT 6s ros2 topic hz /turtle1/cmd_vel
+timeout 8s ros2 param set /patrol publish_hz 0.0
+ros2 param get /patrol publish_hz
+timeout -s INT 6s ros2 topic hz /turtle1/cmd_vel
+```
+
+Открытые тесты и проверка комплекта сдачи выполняются из корня репозитория.
+
+```bash
+(cd src/patrol && python3 -m pytest test)
+python3 .course-kit/v1/tools/check_practice.py PR04 --submission .
+```

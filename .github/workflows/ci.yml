@@ -15,6 +15,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # Check PR02 at its submission commit.
+          ref: 56f5f38f0bf9eb3d53c7c13ef2215038c9894bc0
       - name: Build PR02 launch package
         shell: bash
         run: |
@@ -36,3 +38,41 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           python3 -m json.tool evidence/pr02/report.json > /dev/null
           python3 .course-kit/v1/tools/check_practice.py PR02 --submission .
+
+  check-pr04:
+    runs-on: ubuntu-latest
+    container:
+      image: osrf/ros:lyrical-desktop-full@sha256:e6b1cb530b65588279681db53784e264ce5cf83f2cc33e689d27d6024d7f3ebe
+    env:
+      COURSE_KIT_URL: https://ros.lms.ci.nsu.ru/downloads/robotics-course-kit-v1-w11-0b67bfd41448.tar.gz
+      COURSE_KIT_SHA256: 0b67bfd41448549d21122124b7f49211ba2cd068cc56751871f319eadeb9d0ab
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install test dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends python3-pytest \
+            ros-lyrical-ament-copyright ros-lyrical-ament-flake8 \
+            ros-lyrical-ament-mypy ros-lyrical-ament-pep257 ros-lyrical-ament-xmllint
+      - name: Build and test patrol
+        shell: bash
+        run: |
+          source /opt/ros/lyrical/setup.bash
+          colcon build --symlink-install --packages-select patrol
+          source install/setup.bash
+          cd src/patrol
+          python3 -m pytest test
+      - name: Download course kit
+        shell: bash
+        run: |
+          curl -fsSLo /tmp/course-kit.tar.gz "$COURSE_KIT_URL"
+          printf '%s  %s\n' "$COURSE_KIT_SHA256" /tmp/course-kit.tar.gz | sha256sum -c -
+          mkdir -p .course-kit
+          tar -xzf /tmp/course-kit.tar.gz -C .course-kit
+      - name: Check PR04 evidence
+        shell: bash
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          python3 .course-kit/v1/tools/check_practice.py PR04 --submission .
