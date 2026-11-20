@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "practice_id": "PR05",
+  "commit": "3cb46e0f5a17f3749a3d85714f75d2a9256dcd9a",
+  "course_kit": {
+    "version": "v1-w11",
+    "archive_sha256": "0b67bfd41448549d21122124b7f49211ba2cd068cc56751871f319eadeb9d0ab"
+  },
+  "environment": {
+    "ros_distro": "lyrical",
+    "os": "Ubuntu 26.04.1 LTS",
+    "python": "3.14.4",
+    "architecture": "aarch64",
+    "docker_image": "tiryoh/ros2-desktop-vnc:lyrical-20260906T0836",
+    "docker_image_digest": "sha256:23bbfbd0bac264da8ef39fb599b9d58b209b06603b49e979eba8021286c56b6e"
+  },
+  "commands": [
+    "colcon build --symlink-install",
+    "ros2 launch course_bringup patrol.launch.py --show-args",
+    "colcon test --return-code-on-test-failure",
+    "colcon test-result --verbose",
+    "ros2 launch course_bringup patrol.launch.py namespace:=robot_a subscriber_reliability:=reliable record:=false",
+    "ros2 topic list -t",
+    "ros2 topic info /robot_a/sensor_pose --verbose",
+    "timeout 3s ros2 topic echo /robot_a/sensor_pose --qos-reliability reliable --once",
+    "ros2 launch course_bringup patrol.launch.py namespace:=robot_a subscriber_reliability:=best_effort record:=true bag_dir:=evidence/pr05/bag",
+    "timeout --kill-after=2s 8s ros2 topic echo /robot_a/sensor_pose --qos-reliability best_effort --once --timeout 3",
+    "ros2 bag info evidence/pr05/bag",
+    "cp evidence/pr05/bag/metadata.yaml evidence/pr05/bag-metadata.yaml",
+    "ros2 bag play evidence/pr05/bag --loop --qos-profile-overrides-path config/qos-overrides.yaml",
+    "timeout --kill-after=2s 8s ros2 topic echo /robot_a/sensor_pose --qos-reliability reliable --once --timeout 3"
+  ],
+  "tests": [
+    {
+      "name": "colcon: 19 успешных тестов, 2 пропущены",
+      "status": "passed"
+    },
+    {
+      "name": "Launch-файл показывает четыре аргумента через --show-args",
+      "status": "passed"
+    },
+    {
+      "name": "Живой поток: reliable не получает позу, best_effort получает",
+      "status": "passed"
+    },
+    {
+      "name": "MCAP: 3033 сообщения из одного топика /robot_a/sensor_pose",
+      "status": "passed"
+    },
+    {
+      "name": "Повтор того же MCAP: reliable не получает позу, best_effort получает",
+      "status": "passed"
+    }
+  ],
+  "defect": {
+    "reproducer": "При subscriber_reliability:=reliable топик /robot_a/sensor_pose виден. Echo с reliable сообщил incompatible QoS (RELIABILITY) и за 40 секунд не вывел позу. Внешний timeout не завершил зависший процесс, пришлось послать SIGKILL.",
+    "root_cause": "Издатель pose_relay предлагает best_effort, а подписчик запрашивает reliable. Эти политики несовместимы.",
+    "proof_after": "При subscriber_reliability:=best_effort echo получил Pose с x=5.8112. Записано 3033 сообщения одного топика в MCAP. При повторе этой записи с override best_effort подписка reliable получила предупреждение без позы, а best_effort получила Pose с x=5.9288. Таймер самого echo завершил проверку reliable с кодом 0, результат определялся по выводу позы."
+  },
+  "claims": {
+    "public_tests_passed": true,
+    "defect_reproduced": true,
+    "defect_fixed": true,
+    "replay_verified": true
+  },
+  "time": {
+    "contact_academic_hours": 0,
+    "self_study_hours": 1
+  },
+  "ai_used": true
+}
